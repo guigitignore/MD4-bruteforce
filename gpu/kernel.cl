@@ -48,14 +48,15 @@ void getPasswordFromId(uint64_t id,char* password){
 	}
 }
 
-bool searchMD4(uint64_t id,uint32_t initValue){ 
-    union{
-        uint32_t words[2];
-        uint8_t bytes[8];
-        uint64_t value;
-    }password;
+typedef union{
+    uint32_t words[2];
+    uint8_t bytes[8];
+    uint64_t value;
+}password_data;
 
-    password.value=initValue;
+bool searchMD4(uint64_t id,password_data initValue){ 
+    password_data password=initValue;
+
 
     for (int i=3;i<PWD_LEN;i++){
         password.bytes[i]=charTable[id&0x1F];
@@ -133,16 +134,16 @@ __global static bool hasBeenFound=false;
 #define MAX_ITER (1LU << ((PWD_LEN-3)*5))
 
 __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
+    password_data initValue;
 	// Get the index of the current element to be processed
 	int gid = get_global_id(0);
 
-	uint32_t initValue=0;
-	
-	initValue|=gid%26+'a';
+    initValue.value=0;
+	initValue.bytes[0]=gid%26+'a';
 	gid/=26;
-	initValue|=(gid%26+'a')<<8;
+	initValue.bytes[1]=gid%26+'a';
 	gid/=26;
-	initValue|=charTable[gid]<<16;
+	initValue.bytes[2]=charTable[gid];
 
 	setSearchedDigest(target);
 
@@ -152,7 +153,7 @@ __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
 	do {
 		tested++;
 		if (searchMD4(id,initValue)) {
-			*(uint32_t*)solution|=initValue;
+			*(password_data*)solution=initValue;
             getPasswordFromId(id,solution);
 
             hasBeenFound=true;

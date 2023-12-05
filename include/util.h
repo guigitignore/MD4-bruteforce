@@ -40,7 +40,7 @@ const uint32_t bits= PWD_LEN << 3;
 const uint32_t round2Number=0x5a827999;
 const uint32_t round3Number=0x6ed9eba1;
 
-#define MAX_ID (1 << (5*PWD_LEN))-1
+#define MAX_ID (1LU << (5*PWD_LEN))-1
 
 #define F(x, y, z)			((z) ^ ((x) & ((y) ^ (z))))
 #define G(x, y, z)			(((x) & ((y) | (z))) | ((y) & (z)))

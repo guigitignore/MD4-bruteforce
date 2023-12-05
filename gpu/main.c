@@ -8,6 +8,7 @@
 #define MAX_SOURCE_SIZE (0x100000)
 
 int main(int argc, char **argv) {
+
     uint8_t target[MD4_SIZE];
 
     if (argc != 3) {
@@ -16,8 +17,8 @@ int main(int argc, char **argv) {
     }
 
     if (parseDigest(argv[2],target)==NULL){
-        fprintf(stderr, "Invalid digest\n");
-        return -1;
+        fprintf(stderr, "Cannot parse digest\n");
+        exit(1);
     }
 
     // Load the kernel source code into the array source_str

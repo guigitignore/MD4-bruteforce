@@ -130,7 +130,7 @@ bool searchMD4(uint64_t id,uint32_t initValue){
 
 __global static bool hasBeenFound=false;
 
-#define MAX_ITER (1 << ((PWD_LEN-3)*5))
+#define MAX_ITER (1LU << ((PWD_LEN-3)*5))
 
 __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
 	// Get the index of the current element to be processed

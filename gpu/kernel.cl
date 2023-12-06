@@ -41,7 +41,8 @@ void setSearchedDigest(uint8_t* digest){
 
 const char charTable[32]="abcdefghikjlmnopqrstuvwxyz!\"#$%&";
 
-void getPasswordFromId(uint64_t id,char* password){
+void getPasswordFromId(uint64_t id,uint32_t initValue,char* password){
+    *(uint32_t*)password=initValue;
 	for (int i=3;i<PWD_LEN;i++){
 		password[i]=charTable[id&0x1f];
 		id>>=5;
@@ -55,7 +56,7 @@ bool searchMD4(uint64_t id,uint32_t initValue){
         uint64_t value;
     }password;
 
-    password.value=initValue;
+    password.words[0]=initValue;
 
     for (int i=3;i<PWD_LEN;i++){
         password.bytes[i]=charTable[id&0x1F];
@@ -152,8 +153,8 @@ __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
 	do {
 		tested++;
 		if (searchMD4(id,initValue)) {
-			*(uint32_t*)solution|=initValue;
-            getPasswordFromId(id,solution);
+			
+            getPasswordFromId(id,initValue,solution);
 
             hasBeenFound=true;
 

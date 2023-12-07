@@ -8,10 +8,14 @@
 
 #define SIMPLIFIED_STEP1(f,a,b,c,d)  (a) =simd_vector_add_epi32((a),f((b), (c), (d))) 
 #define STEP1(f,a,b,c,d,x)           (a) =simd_vector_add_epi32((a),simd_vector_add_epi32(f((b), (c), (d)),(x))) 
-#define STEP2(a,s)                   (a) = simd_vector_slli_epi32((a) ,(s)) | simd_vector_srli_epi32((a), (32 - (s)))
+#define STEP2(a,s)                   (a) =simd_vector_slli_epi32((a) ,(s)) | simd_vector_srli_epi32((a), (32 - (s)))
 
 #define STEP(f, a, b, c, d, x, s)          STEP1(f,a,b,c,d,x); STEP2(a,s)
 #define SIMPLIFIED_STEP(f, a, b, c, d, s)  SIMPLIFIED_STEP1(f,a,b,c,d); STEP2(a,s)
+
+#define UNSTEP1(f,a,b,c,d,x)         (a) =simd_vector_sub_epi32((a),simd_vector_add_epi32(f((b), (c), (d)),(x)))
+#define UNSTEP2(a,s)                 (a) =simd_vector_srli_epi32((a) ,(s)) | simd_vector_slli_epi32((a), (32 - (s)))
+#define UNSTEP(f, a, b, c, d, x, s)        UNSTEP2(a,s);UNSTEP1(f,a,b,c,d,x)
 
 typedef struct{
     simd_vector a,b,c,d;
@@ -29,6 +33,7 @@ void initMD4(){
 md4 searchedDigest;
 
 void setSearchedDigest(uint8_t digest[MD4_SIZE]){
+    register simd_vector vRound3Number=simd_vector_set1_epi32(round3Number);
     
     searchedDigest.a=simd_vector_set1_epi32(*(uint32_t*)(digest));
     searchedDigest.b=simd_vector_set1_epi32(*(uint32_t*)(digest+4));
@@ -39,6 +44,15 @@ void setSearchedDigest(uint8_t digest[MD4_SIZE]){
     searchedDigest.b=simd_vector_sub_epi32(searchedDigest.b,md4Init.b);
     searchedDigest.c=simd_vector_sub_epi32(searchedDigest.c,md4Init.c);
     searchedDigest.d=simd_vector_sub_epi32(searchedDigest.d,md4Init.d);
+
+    UNSTEP(H, searchedDigest.b, searchedDigest.d, searchedDigest.a, searchedDigest.c,  vRound3Number, 15);
+    UNSTEP(H, searchedDigest.c, searchedDigest.d, searchedDigest.a, searchedDigest.b,  vRound3Number, 11);
+    UNSTEP(H, searchedDigest.d, searchedDigest.b, searchedDigest.c, searchedDigest.a,  vRound3Number, 9);
+    UNSTEP(H, searchedDigest.a, searchedDigest.b, searchedDigest.c, searchedDigest.d,  vRound3Number, 3);
+
+    UNSTEP(H, searchedDigest.b, searchedDigest.d, searchedDigest.a, searchedDigest.c,  vRound3Number, 15);
+    UNSTEP(H, searchedDigest.c, searchedDigest.d, searchedDigest.a, searchedDigest.b,  vRound3Number, 11);
+    UNSTEP(H, searchedDigest.d, searchedDigest.b, searchedDigest.c, searchedDigest.a,  vRound3Number, 9); 
 }
 
 int searchMD4(uint64_t id){ 
@@ -138,14 +152,6 @@ int searchMD4(uint64_t id){
 	STEP(H, digest.b, digest.d, digest.a, digest.c,  simd_vector_add_epi32(vbits,vRound3Number), 15);
 
     STEP(H, digest.a, digest.b, digest.c, digest.d,  simd_vector_add_epi32(vpassword[1],vRound3Number), 3);
-	STEP(H, digest.d, digest.b, digest.c, digest.a,  vRound3Number, 9);
-	STEP(H, digest.c, digest.d, digest.a, digest.b,  vRound3Number, 11);
-	STEP(H, digest.b, digest.d, digest.a, digest.c,  vRound3Number, 15);
-
-	STEP(H, digest.a, digest.b, digest.c, digest.d,  vRound3Number, 3);
-	STEP(H, digest.d, digest.b, digest.c, digest.a,  vRound3Number, 9);
-	STEP(H, digest.c, digest.d, digest.a, digest.b,  vRound3Number, 11);
-	STEP(H, digest.b, digest.d, digest.a, digest.c,  vRound3Number, 15);
 
     uint32_t cmp=simd_vector_movemask_epi8(
         simd_vector_cmpeq_epi32(digest.a,searchedDigest.a) &

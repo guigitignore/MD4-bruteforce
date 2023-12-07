@@ -15,6 +15,10 @@ typedef unsigned long int uint64_t;
 #define STEP(f, a, b, c, d, x, s)          STEP1(f,a,b,c,d,x); STEP2(a,s)
 #define SIMPLIFIED_STEP(f, a, b, c, d, s)  SIMPLIFIED_STEP1(f,a,b,c,d); STEP2(a,s)
 
+#define UNSTEP1(f,a,b,c,d,x)         (a) -= f((b), (c), (d)) + (x)
+#define UNSTEP2(a,s)                 (a) = (((a) >> (s)) | ((a) << (32 - (s))))
+#define UNSTEP(f, a, b, c, d, x, s)        UNSTEP2(a,s);UNSTEP1(f,a,b,c,d,x)
+
 typedef struct{
     uint32_t a,b,c,d;
 }md4;
@@ -37,6 +41,15 @@ void setSearchedDigest(uint8_t* digest){
     searchedDigest.b=*(uint32_t*)(digest+4) -md4Init.b;
     searchedDigest.c=*(uint32_t*)(digest+8) -md4Init.c;
     searchedDigest.d=*(uint32_t*)(digest+12)-md4Init.d;
+
+    UNSTEP(H, searchedDigest.b, searchedDigest.d, searchedDigest.a, searchedDigest.c,  round3Number, 15);
+    UNSTEP(H, searchedDigest.c, searchedDigest.d, searchedDigest.a, searchedDigest.b,  round3Number, 11);
+    UNSTEP(H, searchedDigest.d, searchedDigest.b, searchedDigest.c, searchedDigest.a,  round3Number, 9);
+    UNSTEP(H, searchedDigest.a, searchedDigest.b, searchedDigest.c, searchedDigest.d,  round3Number, 3);
+
+    UNSTEP(H, searchedDigest.b, searchedDigest.d, searchedDigest.a, searchedDigest.c,  round3Number, 15);
+    UNSTEP(H, searchedDigest.c, searchedDigest.d, searchedDigest.a, searchedDigest.b,  round3Number, 11);
+    UNSTEP(H, searchedDigest.d, searchedDigest.b, searchedDigest.c, searchedDigest.a,  round3Number, 9);
 }
 
 const char charTable[32]="abcdefghikjlmnopqrstuvwxyz!\"#$%&";
@@ -114,14 +127,6 @@ bool searchMD4(uint64_t id,uint32_t initValue){
 	STEP(H, digest.b, digest.d, digest.a, digest.c,  bits + round3Number, 15);
 
     STEP(H, digest.a, digest.b, digest.c, digest.d,  password.words[1] + round3Number, 3);
-	STEP(H, digest.d, digest.b, digest.c, digest.a,  round3Number, 9);
-	STEP(H, digest.c, digest.d, digest.a, digest.b,  round3Number, 11);
-	STEP(H, digest.b, digest.d, digest.a, digest.c,  round3Number, 15);
-
-	STEP(H, digest.a, digest.b, digest.c, digest.d,  round3Number, 3);
-	STEP(H, digest.d, digest.b, digest.c, digest.a,  round3Number, 9);
-	STEP(H, digest.c, digest.d, digest.a, digest.b,  round3Number, 11);
-	STEP(H, digest.b, digest.d, digest.a, digest.c,  round3Number, 15);
     
     return digest.a==searchedDigest.a &&
            digest.b==searchedDigest.b &&
@@ -156,7 +161,7 @@ __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
 			
             getPasswordFromId(id,initValue,solution);
 
-            hasBeenFound=true;
+            //hasBeenFound=true;
 
             printf("found: \"%s\", after %ld tries\n", solution, tested);
             break;

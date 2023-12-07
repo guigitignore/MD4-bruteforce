@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
         clCreateBuffer(context, CL_MEM_READ_ONLY, 16, NULL, &ret);
     if (ret) goto free_queue;
     cl_mem solution_mem_obj =
-        clCreateBuffer(context, CL_MEM_READ_ONLY, PWD_LEN, NULL, &ret);
+        clCreateBuffer(context, CL_MEM_READ_ONLY, PWD_LEN+1, NULL, &ret);
     if (ret) goto free_target_buf;
 
     // Copy the lists A and B to their respective memory buffers
@@ -382,7 +382,7 @@ int main(int argc, char **argv) {
     unsigned char *solution = malloc(PWD_LEN + 1);
     memset(solution, 0, PWD_LEN + 1);
     ret = clEnqueueReadBuffer(command_queue, solution_mem_obj, CL_TRUE, 0,
-                                PWD_LEN, solution, 0, NULL, NULL);
+                                PWD_LEN+1, solution, 0, NULL, NULL);
     clFlush(command_queue);
 
     for (int i = 0; i < PWD_LEN; i++) printf("%02x", solution[i]);

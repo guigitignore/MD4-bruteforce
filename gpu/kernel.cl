@@ -60,6 +60,7 @@ void getPasswordFromId(uint64_t id,uint32_t initValue,char* password){
 		password[i]=charTable[id&0x1f];
 		id>>=5;
 	}
+    password[PWD_LEN]='\0';
 }
 
 bool searchMD4(uint64_t id,uint32_t initValue){ 
@@ -69,7 +70,7 @@ bool searchMD4(uint64_t id,uint32_t initValue){
         uint64_t value;
     }password;
 
-    password.words[0]=initValue;
+    password.value=initValue;
 
     for (int i=3;i<PWD_LEN;i++){
         password.bytes[i]=charTable[id&0x1F];
@@ -161,9 +162,8 @@ __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
 			
             getPasswordFromId(id,initValue,solution);
 
-            //hasBeenFound=true;
-
-            printf("found: \"%s\", after %ld tries\n", solution, tested);
+            hasBeenFound=true;
+            printf("found \'%s\' after %ld tries\n",solution, tested);
             break;
 		}
 		id++;

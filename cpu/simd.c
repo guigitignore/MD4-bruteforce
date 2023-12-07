@@ -71,7 +71,7 @@ int searchMD4(uint64_t id){
     }
     password.bytes[PWD_LEN]=0x80;
 
-    simd_vector vpassword[2]={
+    simd_vector vpassword[4]={
         #ifdef SIMD_MMX
         _mm_set_pi32(
             password.words[0]|charTable[fid],
@@ -96,10 +96,11 @@ int searchMD4(uint64_t id){
             password.words[0]|charTable[fid+7]
         ),
         #endif
-        simd_vector_set1_epi32(password.words[1])
+        simd_vector_set1_epi32(password.words[1]),
+        simd_vector_set1_epi32(bits),
+        simd_vector_set1_epi32(0)
     };
 
-    register simd_vector vbits=simd_vector_set1_epi32(bits);;
     register simd_vector vRound2Number=simd_vector_set1_epi32(round2Number);
     register simd_vector vRound3Number=simd_vector_set1_epi32(round3Number);
     
@@ -111,45 +112,40 @@ int searchMD4(uint64_t id){
     STEP(F, digest.a, digest.b, digest.c, digest.d,vpassword[0], 3);
     STEP(F, digest.d, digest.a, digest.b, digest.c,vpassword[1], 7);
 
-    for (int i=0;i<3;i++){
+    for (register int i=0;i<3;i++){
         SIMPLIFIED_STEP(F, digest.c, digest.d, digest.a, digest.b, 11);
         SIMPLIFIED_STEP(F, digest.b, digest.c, digest.d, digest.a, 19);
         SIMPLIFIED_STEP(F, digest.a, digest.b, digest.c, digest.d, 3);
         SIMPLIFIED_STEP(F, digest.d, digest.a, digest.b, digest.c, 7);   
     }
 
-    STEP(F, digest.c, digest.d, digest.a, digest.b,vbits, 11);
-    SIMPLIFIED_STEP(F, digest.b, digest.c, digest.d, digest.a, 19);
+    STEP(F, digest.c, digest.d, digest.a, digest.b,vpassword[2], 11);
+    STEP(F, digest.b, digest.c, digest.d, digest.a,vpassword[3], 19);
 
     //round 2
-    for (int i=0;i<2;i++){
+    for (register int i=0;i<2;i++){
         STEP(G, digest.a, digest.b, digest.c, digest.d, simd_vector_add_epi32(vpassword[i],vRound2Number), 3);
         STEP(G, digest.d, digest.a, digest.b, digest.c,  vRound2Number, 5);
         STEP(G, digest.c, digest.d, digest.a, digest.b,  vRound2Number, 9);
         STEP(G, digest.b, digest.c, digest.d, digest.a,  vRound2Number, 13);
     }
 
-    STEP(G, digest.a, digest.b, digest.c, digest.d,  vRound2Number, 3);
-    STEP(G, digest.d, digest.a, digest.b, digest.c,  vRound2Number, 5);
-    STEP(G, digest.c, digest.d, digest.a, digest.b,  vRound2Number, 9);
-    STEP(G, digest.b, digest.c, digest.d, digest.a,  simd_vector_add_epi32(vbits,vRound2Number), 13);
-
-    STEP(G, digest.a, digest.b, digest.c, digest.d,  vRound2Number, 3);
-    STEP(G, digest.d, digest.a, digest.b, digest.c,  vRound2Number, 5);
-    STEP(G, digest.c, digest.d, digest.a, digest.b,  vRound2Number, 9);
-    STEP(G, digest.b, digest.c, digest.d, digest.a,  vRound2Number, 13);
+    for (register int i=2;i<4;i++){
+        STEP(G, digest.a, digest.b, digest.c, digest.d,  vRound2Number, 3);
+        STEP(G, digest.d, digest.a, digest.b, digest.c,  vRound2Number, 5);
+        STEP(G, digest.c, digest.d, digest.a, digest.b,  vRound2Number, 9);
+        STEP(G, digest.b, digest.c, digest.d, digest.a,  simd_vector_add_epi32(vpassword[i],vRound2Number), 13);
+    }
 
     //round3
 
-    STEP(H, digest.a, digest.b, digest.c, digest.d, simd_vector_add_epi32(vpassword[0],vRound3Number), 3);
-	STEP(H, digest.d, digest.b, digest.c, digest.a,  vRound3Number, 9);
-	STEP(H, digest.c, digest.d, digest.a, digest.b,  vRound3Number, 11);
-	STEP(H, digest.b, digest.d, digest.a, digest.c,  vRound3Number, 15);
-
-	STEP(H, digest.a, digest.b, digest.c, digest.d,  vRound3Number, 3);
-	STEP(H, digest.d, digest.b, digest.c, digest.a,  vRound3Number, 9);
-	STEP(H, digest.c, digest.d, digest.a, digest.b,  vRound3Number, 11);
-	STEP(H, digest.b, digest.d, digest.a, digest.c,  simd_vector_add_epi32(vbits,vRound3Number), 15);
+    for (register int i=0;i!=2;){
+        STEP(H, digest.a, digest.b, digest.c, digest.d, simd_vector_add_epi32(vpassword[i],vRound3Number), 3);
+        STEP(H, digest.d, digest.b, digest.c, digest.a,  vRound3Number, 9);
+        i+=3;i&=3;
+        STEP(H, digest.c, digest.d, digest.a, digest.b,  vRound3Number, 11);
+        STEP(H, digest.b, digest.d, digest.a, digest.c, simd_vector_add_epi32(vpassword[i],vRound3Number), 15);
+    }
 
     STEP(H, digest.a, digest.b, digest.c, digest.d,  simd_vector_add_epi32(vpassword[1],vRound3Number), 3);
 

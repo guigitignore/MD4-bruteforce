@@ -65,18 +65,19 @@ void getPasswordFromId(uint64_t id,uint32_t initValue,char* password){
 
 bool searchMD4(uint64_t id,uint32_t initValue){ 
     union{
-        uint32_t words[2];
-        uint8_t bytes[8];
-        uint64_t value;
-    }password;
+        uint32_t words[4];
+        uint8_t bytes[16];
+        uint64_t lword[2];
+    }buffer;
 
-    password.value=initValue;
+    buffer.lword[0]=initValue;
+    buffer.lword[1]=bits;
 
     for (int i=3;i<PWD_LEN;i++){
-        password.bytes[i]=charTable[id&0x1F];
+        buffer.bytes[i]=charTable[id&0x1F];
         id>>=5;
     }
-    password.bytes[PWD_LEN]=0x80;
+    buffer.bytes[PWD_LEN]=0x80;
     
     
     // md4 simplified algorithm
@@ -84,8 +85,8 @@ bool searchMD4(uint64_t id,uint32_t initValue){
 
     //round 1
 
-    STEP(F, digest.a, digest.b, digest.c, digest.d,password.words[0], 3);
-    STEP(F, digest.d, digest.a, digest.b, digest.c,password.words[1], 7);
+    STEP(F, digest.a, digest.b, digest.c, digest.d,buffer.words[0], 3);
+    STEP(F, digest.d, digest.a, digest.b, digest.c,buffer.words[1], 7);
 
     for (int i=0;i<3;i++){
         SIMPLIFIED_STEP(F, digest.c, digest.d, digest.a, digest.b, 11);
@@ -94,40 +95,34 @@ bool searchMD4(uint64_t id,uint32_t initValue){
         SIMPLIFIED_STEP(F, digest.d, digest.a, digest.b, digest.c, 7);   
     }
 
-    STEP(F, digest.c, digest.d, digest.a, digest.b,bits, 11);
-    STEP(F, digest.b, digest.c, digest.d, digest.a,0, 19);
+    STEP(F, digest.c, digest.d, digest.a, digest.b,buffer.words[2], 11);
+    STEP(F, digest.b, digest.c, digest.d, digest.a,buffer.words[3], 19);
 
     //round 2
     for (int i=0;i<2;i++){
-        STEP(G, digest.a, digest.b, digest.c, digest.d, password.words[i] + round2Number, 3);
+        STEP(G, digest.a, digest.b, digest.c, digest.d, buffer.words[i] + round2Number, 3);
         STEP(G, digest.d, digest.a, digest.b, digest.c,  round2Number, 5);
         STEP(G, digest.c, digest.d, digest.a, digest.b,  round2Number, 9);
         STEP(G, digest.b, digest.c, digest.d, digest.a,  round2Number, 13);
     }
 
-    STEP(G, digest.a, digest.b, digest.c, digest.d,  round2Number, 3);
-    STEP(G, digest.d, digest.a, digest.b, digest.c,  round2Number, 5);
-    STEP(G, digest.c, digest.d, digest.a, digest.b,  round2Number, 9);
-    STEP(G, digest.b, digest.c, digest.d, digest.a,  bits + round2Number, 13);
-
-    STEP(G, digest.a, digest.b, digest.c, digest.d,  round2Number, 3);
-    STEP(G, digest.d, digest.a, digest.b, digest.c,  round2Number, 5);
-    STEP(G, digest.c, digest.d, digest.a, digest.b,  round2Number, 9);
-    STEP(G, digest.b, digest.c, digest.d, digest.a,  round2Number, 13);
+    for (int i=2;i<4;i++){
+        STEP(G, digest.a, digest.b, digest.c, digest.d,  round2Number, 3);
+        STEP(G, digest.d, digest.a, digest.b, digest.c,  round2Number, 5);
+        STEP(G, digest.c, digest.d, digest.a, digest.b,  round2Number, 9);
+        STEP(G, digest.b, digest.c, digest.d, digest.a,  buffer.words[i] + round2Number, 13);
+    }
 
     //round3
+    for (int i=0;i!=2;){
+        STEP(H, digest.a, digest.b, digest.c, digest.d, buffer.words[i] + round3Number, 3);
+        STEP(H, digest.d, digest.b, digest.c, digest.a,  round3Number, 9);
+        i+=3; i&=0x3;
+        STEP(H, digest.c, digest.d, digest.a, digest.b,  round3Number, 11);
+        STEP(H, digest.b, digest.d, digest.a, digest.c,  buffer.words[i] + round3Number, 15);
+    }
 
-    STEP(H, digest.a, digest.b, digest.c, digest.d, password.words[0] + round3Number, 3);
-	STEP(H, digest.d, digest.b, digest.c, digest.a,  round3Number, 9);
-	STEP(H, digest.c, digest.d, digest.a, digest.b,  round3Number, 11);
-	STEP(H, digest.b, digest.d, digest.a, digest.c,  round3Number, 15);
-
-	STEP(H, digest.a, digest.b, digest.c, digest.d,  round3Number, 3);
-	STEP(H, digest.d, digest.b, digest.c, digest.a,  round3Number, 9);
-	STEP(H, digest.c, digest.d, digest.a, digest.b,  round3Number, 11);
-	STEP(H, digest.b, digest.d, digest.a, digest.c,  bits + round3Number, 15);
-
-    STEP(H, digest.a, digest.b, digest.c, digest.d,  password.words[1] + round3Number, 3);
+    STEP(H, digest.a, digest.b, digest.c, digest.d,  buffer.words[1] + round3Number, 3);
     
     return digest.a==searchedDigest.a &&
            digest.b==searchedDigest.b &&
@@ -159,9 +154,7 @@ __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
 	do {
 		tested++;
 		if (searchMD4(id,initValue)) {
-			
             getPasswordFromId(id,initValue,solution);
-
             hasBeenFound=true;
             printf("found \'%s\' after %ld tries\n",solution, tested);
             break;

@@ -1,7 +1,7 @@
 #ifndef CONFIG_H_INCLUDED
 #define CONFIG_H_INCLUDED
 
-#define PWD_LEN 6
+#define PWD_LEN 7
 #define MAX_PWD_LEN 7
 #define MD4_SIZE 16
 

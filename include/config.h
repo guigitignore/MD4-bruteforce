@@ -1,7 +1,11 @@
+
 #ifndef CONFIG_H_INCLUDED
 #define CONFIG_H_INCLUDED
 
+//change PWD_LEN value in order to test different passwords length. You have to recompile the whole project after changing this value
 #define PWD_LEN 7
+
+//do not change these values
 #define MAX_PWD_LEN 7
 #define MD4_SIZE 16
 

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "../include/util.h"
+//same implementation than simd.c except that we can simplify things
 
 #define SIMPLIFIED_STEP1(f,a,b,c,d)  (a) += f((b), (c), (d))
 #define STEP1(f,a,b,c,d,x)           (a) += f((b), (c), (d)) + (x)
@@ -20,7 +21,7 @@ typedef struct{
     uint32_t a,b,c,d;
 }md4;
 
-
+// we can directly set init vector as a constant
 const md4 md4Init={
     .a=0x67452301,
     .b=0xefcdab89,
@@ -36,6 +37,8 @@ void setSearchedDigest(uint8_t digest[MD4_SIZE]){
     searchedDigest.c=*(uint32_t*)(digest+8) -md4Init.c;
     searchedDigest.d=*(uint32_t*)(digest+12)-md4Init.d;
 
+    //perform reverse steps
+
     UNSTEP(H, searchedDigest.b, searchedDigest.d, searchedDigest.a, searchedDigest.c,  round3Number, 15);
     UNSTEP(H, searchedDigest.c, searchedDigest.d, searchedDigest.a, searchedDigest.b,  round3Number, 11);
     UNSTEP(H, searchedDigest.d, searchedDigest.b, searchedDigest.c, searchedDigest.a,  round3Number, 9);
@@ -46,6 +49,7 @@ void setSearchedDigest(uint8_t digest[MD4_SIZE]){
     UNSTEP(H, searchedDigest.d, searchedDigest.b, searchedDigest.c, searchedDigest.a,  round3Number, 9); 
 }
 
+//return true if we find digest / false otherwise
 bool searchMD4(uint64_t id){ 
     union{
         uint32_t words[4];
@@ -53,6 +57,7 @@ bool searchMD4(uint64_t id){
         uint64_t lword[2];
     }buffer;
 
+    //init full buffer using union largest unit (endianness specific! -> it works only because we are using little endian)
     buffer.lword[0]=0;
     buffer.lword[1]=bits;
 
@@ -106,13 +111,14 @@ bool searchMD4(uint64_t id){
     }
 
     STEP(H, digest.a, digest.b, digest.c, digest.d,  buffer.words[1] + round3Number, 3);
-    
+    //compare result
     return digest.a==searchedDigest.a &&
            digest.b==searchedDigest.b &&
            digest.c==searchedDigest.c &&
            digest.d==searchedDigest.d;
 }
 
+//same
 int main(int argc,char* argv[]){
     char password[PWD_LEN+1];
     uint8_t target[MD4_SIZE];

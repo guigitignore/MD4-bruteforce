@@ -1,9 +1,11 @@
 #include "../include/config.h"
 
+//define stdint.h types in kernel 
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
 typedef unsigned long int uint64_t;
 
+//we use the exact same implementation than simple.c
 #define F(x, y, z)			((z) ^ ((x) & ((y) ^ (z))))
 #define G(x, y, z)			(((x) & ((y) | (z))) | ((y) & (z)))
 #define H(x, y, z)			(((x) ^ (y)) ^ (z))
@@ -54,6 +56,7 @@ void setSearchedDigest(uint8_t* digest){
 
 const char charTable[32]="abcdefghikjlmnopqrstuvwxyz!\"#$%&";
 
+//init value is thread specific. it depends on thread id
 void getPasswordFromId(uint64_t id,uint32_t initValue,char* password){
     *(uint32_t*)password=initValue;
 	for (int i=3;i<PWD_LEN;i++){
@@ -63,6 +66,7 @@ void getPasswordFromId(uint64_t id,uint32_t initValue,char* password){
     password[PWD_LEN]='\0';
 }
 
+//we use initValue because each thread compute a range of id.
 bool searchMD4(uint64_t id,uint32_t initValue){ 
     union{
         uint32_t words[4];
@@ -130,8 +134,10 @@ bool searchMD4(uint64_t id,uint32_t initValue){
            digest.d==searchedDigest.d;
 }
 
+//global variable shared between threads. It allows to stop all threads when one has find the password
 __global static bool hasBeenFound=false;
 
+//maximum iterations for threads
 #define MAX_ITER (1LU << ((PWD_LEN-3)*5))
 
 __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
@@ -139,7 +145,7 @@ __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
 	int gid = get_global_id(0);
 
 	uint32_t initValue=0;
-	
+	//set init value
 	initValue|=gid%26+'a';
 	gid/=26;
 	initValue|=(gid%26+'a')<<8;
@@ -154,6 +160,7 @@ __kernel void md4_crack(__global uint8_t *target, __global char *solution) {
 	do {
 		tested++;
 		if (searchMD4(id,initValue)) {
+            //copy into solution the password
             getPasswordFromId(id,initValue,solution);
             hasBeenFound=true;
             printf("found \'%s\' after %ld tries\n",solution, tested);

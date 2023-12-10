@@ -2,6 +2,7 @@
 #define SIMD_H_INCLUDED
 #include <immintrin.h>
 
+//define inline functions to use depending of simd technologie used
 #ifdef SIMD_MMX
 typedef __m64 simd_vector;
 

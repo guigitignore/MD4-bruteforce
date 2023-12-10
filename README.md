@@ -2,6 +2,8 @@
 
 This project is a proof of concept of bruteforcing md4 digest produced by passwords having lenght between 3 and 7 characters.
 
+You can generate your MD4 digests using this website: [MD4 generator](https://emn178.github.io/online-tools/md4.html)
+
 The characters used in password must be in the following list: `abcdefghikjlmnopqrstuvwxyz!"#$%&`
 
 MD4 implementation has been optimized to have a maximum of performance for this special case.
@@ -44,7 +46,6 @@ apt install clang-15 opencl-c-headers clinfo nvidia-libopencl1
 clinfo
 ```
 
-
 ## Usage
 
 Once you have sucessfully compiled one implementation, you shoud find the executable in a newly created `target` folder.
@@ -55,7 +56,7 @@ To test CPU based implementation:
 
 `./target/simple <md4 digest>` or `./target/sse <md4 digest>` ...
 
-It should display the number of password tried each second while running. 
+It should display the number of password tried each second while running.
 
 To give you an idea of what kind of speed to expect, here is a summary of tests on different benchmarks:
 
@@ -82,3 +83,15 @@ Project is divided in different folder:
 **If you want to change the length of the password bruteforced, you must edit "*include/config.h*" file and change "*PWD_LEN*" value. The value is applied to each implementation at compilation time.**
 
 Executable can be found in the "target" folder.
+
+## Optimisations used
+
+Because password has a lower length than sate array used in MD4, we can compute the digest in one round.
+
+Also I don't use state array because we only use 2 first value and the numberof bits of the input as useful values.
+
+Instead of computing all digest, we set the researched digest at the beginning and we are using a function taht just return true or false to know if password match.
+
+We don't pass the password to the function. Instead we are giving a id that the function will use to generate quickly the corresponding password.
+
+To avoid doing useless final step on MD4 algorithm whn we set the target digest we reverse the final steps of the algorithms so we can check faster in each iteration if we found the good result.
